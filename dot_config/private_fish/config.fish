@@ -17,6 +17,7 @@ function fish_user_key_bindings
 end
 
 fish_add_path $HOME/bin
+fish_add_path $HOME/.cargo/bin
 
 set -U FZF_LEGACY_KEYBINDINGS 0
 set -U FZF_REVERSE_ISEARCH_OPTS "--reverse --height=100%"
@@ -50,3 +51,6 @@ function ec2_stop
   aws ec2 --profile saml wait instance-stopped --instance-ids $EC2_INSTANCE_ID
   aws ec2 --profile saml describe-instances --instance-ids $EC2_INSTANCE_ID
 end
+
+source /usr/local/opt/asdf/libexec/asdf.fish
+

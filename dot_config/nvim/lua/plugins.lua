@@ -468,14 +468,6 @@ return require("packer").startup(function(use)
       vim.keymap.set('n', '<Space>g', '<Cmd>Telescope grep_string<CR>', option)
     end
   }
-  use {
-    "nvim-telescope/telescope-frecency.nvim",
-    config = function()
-      require("telescope").load_extension("frecency")
-    end,
-    requires = { "kkharji/sqlite.lua" }
-  }
-
   -----------------------------------------------------
   -- Treesitter
   -----------------------------------------------------
