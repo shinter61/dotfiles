@@ -494,21 +494,6 @@ return require("packer").startup(function(use)
     end
   }
   use { "tpope/vim-rhubarb" }
-  use {
-    "APZelos/blamer.nvim",
-    config = function ()
-      vim.api.nvim_exec(
-        [[
-          let g:blamer_enabled = 1
-          let g:blamer_delay = 100
-          let g:blamer_show_in_visual_mode = 0
-          let g:blamer_show_in_insert_mode = 0
-          let g:blamer_date_format = '%y/%m/%d %H:%M'
-        ]],
-        false
-      )
-    end
-  }
 
   -----------------------------------------------------
   -- Startup screen
