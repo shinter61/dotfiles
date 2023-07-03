@@ -2,7 +2,6 @@ if status is-interactive
     # Commands to run in interactive sessions can go here
 end
 
-
 # ghq + fzf
 function ghq_fzf_repo -d 'Repository search'
   ghq list --full-path | fzf --reverse --height=100% | read select
@@ -52,5 +51,9 @@ function ec2_stop
   aws ec2 --profile saml describe-instances --instance-ids $EC2_INSTANCE_ID
 end
 
-source /usr/local/opt/asdf/libexec/asdf.fish
+if test (uname) = "Darwin"
+  source /usr/local/opt/asdf/libexec/asdf.fish
+else if test (uname) = "Linux"
+  source $HOME/.asdf/asdf.fish
+end
 
