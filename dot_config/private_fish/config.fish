@@ -57,3 +57,8 @@ else if test (uname) = "Linux"
   source $HOME/.asdf/asdf.fish
 end
 
+# go packages用
+if test -d (go env GOPATH)/bin
+  fish_add_path (go env GOPATH)/bin
+end
+
