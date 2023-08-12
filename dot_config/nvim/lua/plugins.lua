@@ -162,6 +162,7 @@ return require("packer").startup(function(use)
   use 'williamboman/mason-lspconfig.nvim'
   use "hrsh7th/nvim-cmp"
   use "hrsh7th/cmp-nvim-lsp"
+  use 'hrsh7th/cmp-nvim-lsp-signature-help'
   use "hrsh7th/vim-vsnip"
   use "hrsh7th/cmp-path"
   use "hrsh7th/cmp-buffer"
@@ -189,7 +190,7 @@ return require("packer").startup(function(use)
     -- See `:help vim.lsp.*` for documentation on any of the below functions
     vim.keymap.set("n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", opts)
     vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", opts)
-    vim.keymap.set("n", "?", "<cmd>lua vim.lsp.buf.hover()<CR>", opts)
+    vim.keymap.set("n", "K", "<cmd>lua vim.lsp.buf.hover()<CR>", opts)
     vim.keymap.set("n", "gi", "<cmd>lua vim.lsp.buf.implementation()<CR>", opts)
     vim.keymap.set("n", "g?", "<cmd>lua vim.lsp.buf.signature_help()<CR>", opts)
     vim.keymap.set("n", "[_Lsp]wa", "<cmd>lua vim.lsp.buf.add_workspace_folder()<CR>", opts)
@@ -215,7 +216,7 @@ return require("packer").startup(function(use)
   require("rust-tools").setup()
   require('mason').setup()
   require('mason-lspconfig').setup {
-    ensure_installed = { "lua_ls", "rust_analyzer" }
+    ensure_installed = { "lua_ls" }
   }
   require('mason-lspconfig').setup_handlers({
     function(server)
@@ -225,12 +226,24 @@ return require("packer").startup(function(use)
     ["rust_analyzer"] = function ()
       local has_rust_tools, rust_tools = pcall(require, "rust-tools")
       if has_rust_tools then
-        rust_tools.setup({ server = { capabilities = capabilities, on_attach = on_attach } })
+        local tools = { -- rust-tools options
+            autoSetHints = true,
+            hover_with_actions = true,
+            inlay_hints = {
+                show_parameter_hints = false,
+                parameter_hints_prefix = "",
+                other_hints_prefix = "",
+            },
+        }
+        rust_tools.setup({ server = { capabilities = capabilities, on_attach = on_attach }, tools = tools })
       else
         lspconfig.rust_analyzer.setup({ capabilities = capabilities, on_attach = on_attach })
       end
     end
   })
+
+  use { "rust-lang/rust.vim" }
+  vim.g.rustfmt_autosave = 1
 
   -----------------------------------------------------
   -- LSP keyboard shortcut
@@ -318,6 +331,16 @@ return require("packer").startup(function(use)
   -----------------------------------------------------
   -- LSP Auto Completion
   -----------------------------------------------------
+  --Set completeopt to have a better completion experience
+  -- :help completeopt
+  -- menuone: popup even when there's only one match
+  -- noinsert: Do not insert text until a selection is made
+  -- noselect: Do not select, force to select one from the menu
+  -- shortness: avoid showing extra messages when using completion
+  -- updatetime: set updatetime for CursorHold
+  vim.opt.completeopt = {'menuone', 'noselect', 'noinsert'}
+  vim.opt.shortmess = vim.opt.shortmess + { c = true }
+
    -- Set up nvim-cmp.
    local cmp = require'cmp'
 
@@ -332,8 +355,8 @@ return require("packer").startup(function(use)
        end,
      },
      window = {
-       -- completion = cmp.config.window.bordered(),
-       -- documentation = cmp.config.window.bordered(),
+       completion = cmp.config.window.bordered(),
+       documentation = cmp.config.window.bordered(),
      },
      mapping = cmp.mapping.preset.insert({
        ['<C-b>'] = cmp.mapping.scroll_docs(-4),
@@ -343,11 +366,29 @@ return require("packer").startup(function(use)
        ['<CR>'] = cmp.mapping.confirm({ select = true }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
      }),
      sources = cmp.config.sources({
+       { name = 'path' },
        { name = 'nvim_lsp' },
+       { name = 'nvim_lsp_signature_help' },
+       { name = 'nvim_lua' },
        { name = 'vsnip' },
+       { name = 'buffer' },
+       { name = 'calc' }
      }, {
        { name = 'buffer' },
-     })
+     }),
+     formatting = {
+      fields = {'menu', 'abbr', 'kind'},
+      format = function(entry, item)
+        local menu_icon ={
+          nvim_lsp = 'λ',
+          vsnip = '⋗',
+          buffer = 'Ω',
+          path = '🖫',
+        }
+        item.menu = menu_icon[entry.source.name]
+        return item
+      end,
+      },
    })
 
    -- Set configuration for specific filetype.
@@ -376,6 +417,39 @@ return require("packer").startup(function(use)
        { name = 'cmdline' }
      })
    })
+
+   -- LSP Diagnostics Options Setup 
+    local sign = function(opts)
+      vim.fn.sign_define(opts.name, {
+        texthl = opts.name,
+        text = opts.text,
+        numhl = ''
+      })
+    end
+
+    sign({name = 'DiagnosticSignError', text = ''})
+    sign({name = 'DiagnosticSignWarn', text = ''})
+    sign({name = 'DiagnosticSignHint', text = ''})
+    sign({name = 'DiagnosticSignInfo', text = ''})
+
+    vim.diagnostic.config({
+        virtual_text = false,
+        signs = true,
+        update_in_insert = true,
+        underline = true,
+        severity_sort = false,
+        float = {
+            border = 'rounded',
+            source = 'always',
+            header = '',
+            prefix = '',
+        },
+    })
+
+    vim.cmd([[
+      set signcolumn=yes
+      autocmd CursorHold * lua vim.diagnostic.open_float(nil, { focusable = false })
+    ]])
 
   -----------------------------------------------------
   -- Auto Completion
@@ -462,6 +536,22 @@ return require("packer").startup(function(use)
       ts_update()
     end,
   }
+
+  require('nvim-treesitter.configs').setup {
+    ensure_installed = { "lua", "rust", "toml" },
+    auto_install = true,
+    highlight = {
+      enable = true,
+      additional_vim_regex_highlighting=false,
+    },
+    ident = { enable = true }, 
+    rainbow = {
+      enable = true,
+      extended_mode = true,
+      max_file_lines = nil,
+    }
+  }
+
   use {
     'm-demare/hlargs.nvim',
     requires = { 'nvim-treesitter/nvim-treesitter' }
