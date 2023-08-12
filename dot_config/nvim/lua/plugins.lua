@@ -167,100 +167,86 @@ return require("packer").startup(function(use)
   use "hrsh7th/cmp-buffer"
   use "hrsh7th/cmp-cmdline"
   use "jose-elias-alvarez/null-ls.nvim"
+  use 'simrat39/rust-tools.nvim'
+  -- Debugging
+  use 'nvim-lua/plenary.nvim'
+  use 'mfussenegger/nvim-dap'
 
   -----------------------------------------------------
   -- LSP Server management
   -----------------------------------------------------
+  
+  -- Use an on_attach function to only map the following keys
+  -- after the language server attaches to the current buffer
+  -- selene: allow(unused_variable)
+  ---@diagnostic disable-next-line: unused-local
+  local on_attach = function(client, bufnr)
+    -- Enable completion triggered by <c-x><c-o>
+    vim.api.nvim_set_option_value("omnifunc", "v:lua.vim.lsp.omnifunc", { buf = bufnr })
+
+    -- Mappings.
+    local opts = { noremap = true, silent = true, buffer = bufnr }
+    -- See `:help vim.lsp.*` for documentation on any of the below functions
+    vim.keymap.set("n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", opts)
+    vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", opts)
+    vim.keymap.set("n", "?", "<cmd>lua vim.lsp.buf.hover()<CR>", opts)
+    vim.keymap.set("n", "gi", "<cmd>lua vim.lsp.buf.implementation()<CR>", opts)
+    vim.keymap.set("n", "g?", "<cmd>lua vim.lsp.buf.signature_help()<CR>", opts)
+    vim.keymap.set("n", "[_Lsp]wa", "<cmd>lua vim.lsp.buf.add_workspace_folder()<CR>", opts)
+    vim.keymap.set("n", "[_Lsp]wr", "<cmd>lua vim.lsp.buf.remove_workspace_folder()<CR>", opts)
+    vim.keymap.set("n", "[_Lsp]wl", "<cmd>lua print(vim.inspect(vim.lsp.buf.list_workspace_folders()))<CR>", opts)
+    vim.keymap.set("n", "[_Lsp]D", "<cmd>lua vim.lsp.buf.type_definition()<CR>", opts)
+    -- vim.keymap.set("n", "[_Lsp]rn", "<cmd>lua vim.lsp.buf.rename()<CR>", opts)
+    vim.keymap.set("n", "[_Lsp]a", "<cmd>lua vim.lsp.buf.code_action()<CR>", opts)
+    vim.keymap.set("n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", opts)
+    vim.keymap.set("n", "[_Lsp]e", "<cmd>lua vim.diagnostic.open_float()<CR>", opts)
+    vim.keymap.set("n", "[d", "<cmd>lua vim.diagnostic.goto_prev()<CR>", opts)
+    vim.keymap.set("n", "]d", "<cmd>lua vim.diagnostic.goto_next()<CR>", opts)
+    vim.keymap.set("n", "[_Lsp]q", "<cmd>lua vim.diagnostic.setloclist()<CR>", opts)
+    vim.keymap.set("n", "[_Lsp]f", "<cmd>lua vim.lsp.buf.formatting()<CR>", opts)
+
+    -- require("lsp_signature").on_attach()
+    -- require("illuminate").on_attach(client)
+    -- require("nvim-navic").attach(client, bufnr)
+  end
+  local capabilities = require("cmp_nvim_lsp").default_capabilities()
 
   local lspconfig = require('lspconfig')
-  local null_ls = require('null-ls')
+  require("rust-tools").setup()
   require('mason').setup()
+  require('mason-lspconfig').setup {
+    ensure_installed = { "lua_ls", "rust_analyzer" }
+  }
   require('mason-lspconfig').setup_handlers({
     function(server)
-      local opt = {
-        -- -- Function executed when the LSP server startup
-        -- on_attach = function(client, bufnr)
-        --   local opts = { noremap=true, silent=true }
-        --   vim.api.nvim_buf_set_keymap(bufnr, 'n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
-        --   vim.cmd 'autocmd BufWritePre * lua vim.lsp.buf.formatting_sync(nil, 1000)'
-        -- end,
-        capabilities = require('cmp_nvim_lsp').default_capabilities(
-          vim.lsp.protocol.make_client_capabilities()
-        )
-      }
+      local opt = { capabilities = capabilities, on_attach = on_attach }
       lspconfig[server].setup(opt)
     end,
-    ['tsserver'] = function()
-      lspconfig.tsserver.setup({
-        settings = {
-          completions = {
-            completeFunctionCalls = true
-          }
-        }
-      })
-    end,
-    -- ['solargraph'] = function()
-    --   lspconfig.solargraph.setup({})
-    -- end,
-  })
-
-  null_ls.setup({
-    sources = {
-      null_ls.builtins.formatting.prettier.with({
-        condition = function(utils)
-          return utils.root_has_file({
-            ".prettierrc",
-            ".prettierrc.js",
-            ".prettierrc.json",
-            ".prettierrc.ts",
-          })
-        end
-      }),
-    },
-    on_attach = function(client, bufnr)
-      if client.supports_method("textDocument/formatting") then
-        vim.api.nvim_create_autocmd("BufWritePre", {
-          buffer = bufnr,
-          callback = function()
-            vim.lsp.buf.format({ bufnr = bufnr })
-          end
-        })
+    ["rust_analyzer"] = function ()
+      local has_rust_tools, rust_tools = pcall(require, "rust-tools")
+      if has_rust_tools then
+        rust_tools.setup({ server = { capabilities = capabilities, on_attach = on_attach } })
+      else
+        lspconfig.rust_analyzer.setup({ capabilities = capabilities, on_attach = on_attach })
       end
     end
   })
 
-
-  -- lspconfig.solargraph.setup({
-  --   on_attach = function(client, bufnr)
-  --     -- formatting
-  --     if client.server_capabilities.documentFormattingProvider then
-  --       vim.api.nvim_create_autocmd("BufWritePre", {
-  --         group = vim.api.nvim_create_augroup("Format", { clear = true }),
-  --         buffer = bufnr,
-  --         callback = function()
-  --           vim.lsp.buf.format({ bufnr = bufnr })
-  --         end,
-  --         desc = "[lsp] format on save",
-  --       })
-  --     end
-  --   end
-  -- })
-
   -----------------------------------------------------
   -- LSP keyboard shortcut
   -----------------------------------------------------
-  vim.keymap.set('n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>')
-  vim.keymap.set('n', 'gf', '<cmd>lua vim.lsp.buf.formatting()<CR>')
-  vim.keymap.set('n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>')
-  vim.keymap.set('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<CR>')
-  vim.keymap.set('n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<CR>')
-  vim.keymap.set('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<CR>')
-  vim.keymap.set('n', 'gt', '<cmd>lua vim.lsp.buf.type_definition()<CR>')
-  vim.keymap.set('n', 'gn', '<cmd>lua vim.lsp.buf.rename()<CR>')
-  vim.keymap.set('n', 'ga', '<cmd>lua vim.lsp.buf.code_action()<CR>')
-  vim.keymap.set('n', 'ge', '<cmd>lua vim.diagnostic.open_float()<CR>')
-  vim.keymap.set('n', 'g]', '<cmd>lua vim.diagnostic.goto_next()<CR>')
-  vim.keymap.set('n', 'g[', '<cmd>lua vim.diagnostic.goto_prev()<CR>')
+  -- vim.keymap.set('n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>')
+  -- vim.keymap.set('n', 'gf', '<cmd>lua vim.lsp.buf.formatting()<CR>')
+  -- vim.keymap.set('n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>')
+  -- vim.keymap.set('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<CR>')
+  -- vim.keymap.set('n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<CR>')
+  -- vim.keymap.set('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<CR>')
+  -- vim.keymap.set('n', 'gt', '<cmd>lua vim.lsp.buf.type_definition()<CR>')
+  -- vim.keymap.set('n', 'gn', '<cmd>lua vim.lsp.buf.rename()<CR>')
+  -- vim.keymap.set('n', 'ga', '<cmd>lua vim.lsp.buf.code_action()<CR>')
+  -- vim.keymap.set('n', 'ge', '<cmd>lua vim.diagnostic.open_float()<CR>')
+  -- vim.keymap.set('n', 'g]', '<cmd>lua vim.diagnostic.goto_next()<CR>')
+  -- vim.keymap.set('n', 'g[', '<cmd>lua vim.diagnostic.goto_prev()<CR>')
 
   -----------------------------------------------------
   -- LSP UI
@@ -332,67 +318,65 @@ return require("packer").startup(function(use)
   -----------------------------------------------------
   -- LSP Auto Completion
   -----------------------------------------------------
--- Set up nvim-cmp.
-  local cmp = require'cmp'
+   -- Set up nvim-cmp.
+   local cmp = require'cmp'
 
-  cmp.setup({
-    snippet = {
-      -- REQUIRED - you must specify a snippet engine
-      expand = function(args)
-        vim.fn["vsnip#anonymous"](args.body) -- For `vsnip` users.
-        -- require('luasnip').lsp_expand(args.body) -- For `luasnip` users.
-        -- require('snippy').expand_snippet(args.body) -- For `snippy` users.
-        -- vim.fn["UltiSnips#Anon"](args.body) -- For `ultisnips` users.
-      end,
-    },
-    window = {
-      -- completion = cmp.config.window.bordered(),
-      -- documentation = cmp.config.window.bordered(),
-    },
-    mapping = cmp.mapping.preset.insert({
-      ['<C-b>'] = cmp.mapping.scroll_docs(-4),
-      ['<C-f>'] = cmp.mapping.scroll_docs(4),
-      ['<C-Space>'] = cmp.mapping.complete(),
-      ['<C-e>'] = cmp.mapping.abort(),
-      ['<CR>'] = cmp.mapping.confirm({ select = true }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
-    }),
-    sources = cmp.config.sources({
-      { name = 'nvim_lsp' },
-      { name = 'vsnip' }, -- For vsnip users.
-      -- { name = 'luasnip' }, -- For luasnip users.
-      -- { name = 'ultisnips' }, -- For ultisnips users.
-      -- { name = 'snippy' }, -- For snippy users.
-    }, {
-      { name = 'buffer' },
-    })
-  })
+   cmp.setup({
+     snippet = {
+       -- REQUIRED - you must specify a snippet engine
+       expand = function(args)
+         vim.fn["vsnip#anonymous"](args.body) -- For `vsnip` users.
+         -- require('luasnip').lsp_expand(args.body) -- For `luasnip` users.
+         -- require('snippy').expand_snippet(args.body) -- For `snippy` users.
+         -- vim.fn["UltiSnips#Anon"](args.body) -- For `ultisnips` users.
+       end,
+     },
+     window = {
+       -- completion = cmp.config.window.bordered(),
+       -- documentation = cmp.config.window.bordered(),
+     },
+     mapping = cmp.mapping.preset.insert({
+       ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+       ['<C-f>'] = cmp.mapping.scroll_docs(4),
+       ['<C-Space>'] = cmp.mapping.complete(),
+       ['<C-e>'] = cmp.mapping.abort(),
+       ['<CR>'] = cmp.mapping.confirm({ select = true }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
+     }),
+     sources = cmp.config.sources({
+       { name = 'nvim_lsp' },
+       { name = 'vsnip' },
+     }, {
+       { name = 'buffer' },
+     })
+   })
 
-  -- Set configuration for specific filetype.
-  cmp.setup.filetype('gitcommit', {
-    sources = cmp.config.sources({
-      { name = 'cmp_git' }, -- You can specify the `cmp_git` source if you were installed it.
-    }, {
-      { name = 'buffer' },
-    })
-  })
+   -- Set configuration for specific filetype.
+   cmp.setup.filetype('gitcommit', {
+     sources = cmp.config.sources({
+       { name = 'cmp_git' }, -- You can specify the `cmp_git` source if you were installed it.
+     }, {
+       { name = 'buffer' },
+     })
+   })
 
-  -- Use buffer source for `/` and `?` (if you enabled `native_menu`, this won't work anymore).
-  cmp.setup.cmdline({ '/', '?' }, {
-    mapping = cmp.mapping.preset.cmdline(),
-    sources = {
-      { name = 'buffer' }
-    }
-  })
+   -- Use buffer source for `/` and `?` (if you enabled `native_menu`, this won't work anymore).
+   cmp.setup.cmdline({ '/', '?' }, {
+     mapping = cmp.mapping.preset.cmdline(),
+     sources = {
+       { name = 'buffer' }
+     }
+   })
 
-  -- Use cmdline & path source for ':' (if you enabled `native_menu`, this won't work anymore).
-  cmp.setup.cmdline(':', {
-    mapping = cmp.mapping.preset.cmdline(),
-    sources = cmp.config.sources({
-      { name = 'path' }
-    }, {
-      { name = 'cmdline' }
-    })
-  })
+   -- Use cmdline & path source for ':' (if you enabled `native_menu`, this won't work anymore).
+   cmp.setup.cmdline(':', {
+     mapping = cmp.mapping.preset.cmdline(),
+     sources = cmp.config.sources({
+       { name = 'path' }
+     }, {
+       { name = 'cmdline' }
+     })
+   })
+
   -----------------------------------------------------
   -- Auto Completion
   -----------------------------------------------------
