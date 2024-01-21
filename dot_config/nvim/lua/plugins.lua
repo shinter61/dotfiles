@@ -20,7 +20,7 @@ vim.cmd([[packadd packer.nvim]])
 vim.cmd([[
   augroup packer_user_config
     autocmd!
-    autocmd BufWritePost plugins.lua source <afile> | PackerSync
+    autocmd BufWritePost plugins.lua source <afile> | PackerCompile
   augroup end
 ]])
 
@@ -523,10 +523,15 @@ return require("packer").startup(function(use)
       }
       require("telescope").load_extension("live_grep_args")
       local option = { noremap = true, silent = true }
+      local builtin = require("telescope.builtin")
+      local function grep_cword()
+        return builtin.live_grep({ default_text = vim.fn.expand("<cword>") })
+      end
 
       vim.keymap.set('n', '<Space>f', '<Cmd>Telescope find_files<CR>', option)
       vim.keymap.set('n', '<Space>fg', '<Cmd>Telescope git_files<CR>', option)
       vim.keymap.set('n', '<Space>r', '<Cmd>Telescope live_grep<CR>', option)
+      vim.keymap.set('n', '<Space>cr', grep_cword, option)
       vim.keymap.set('n', '<Space>g', '<Cmd>Telescope grep_string<CR>', option)
     end
   }
