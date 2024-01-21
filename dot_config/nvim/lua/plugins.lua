@@ -494,7 +494,10 @@ return require("packer").startup(function(use)
   use {
     'nvim-telescope/telescope.nvim', tag = '0.1.4',
     -- or                            , branch = '0.1.x',
-    requires = { { 'nvim-lua/plenary.nvim' } },
+    requires = {
+      { 'nvim-lua/plenary.nvim' },
+      { "nvim-telescope/telescope-live-grep-args.nvim" },
+    },
     event = { "VimEnter" },
     config = function()
       require('telescope').setup {
@@ -517,6 +520,7 @@ return require("packer").startup(function(use)
             auto_validate = true,
           }
         }
+        require("telescope").load_extension("live_grep_args")
       }
       local option = { noremap = true, silent = true }
 
