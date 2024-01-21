@@ -520,8 +520,8 @@ return require("packer").startup(function(use)
             auto_validate = true,
           }
         }
-        require("telescope").load_extension("live_grep_args")
       }
+      require("telescope").load_extension("live_grep_args")
       local option = { noremap = true, silent = true }
 
       vim.keymap.set('n', '<Space>f', '<Cmd>Telescope find_files<CR>', option)
